@@ -11,14 +11,20 @@ services:
     ports:
       - "27017:27017"
 
-  cassandra:
-    image: cassandra:4.1.10
-    container_name: cassandra
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
     ports:
-      - "9042:9042"
+      - "8086:8086"
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
     environment:
-      - MAX_HEAP_SIZE=512M
-      - HEAP_NEWSIZE=256M
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin123
+      - DOCKER_INFLUXDB_INIT_ORG=my-org
+      - DOCKER_INFLUXDB_INIT_BUCKET=my-bucket
+      - DOCKER_INFLUXDB_INIT_RETENTION=0
 
   neo4j:
     image: neo4j:5.26.17
@@ -32,3 +38,5 @@ services:
       - NEO4J_dbms_memory_heap_initial__size=512M
       - NEO4J_dbms_memory_heap_max__size=512M
 
+volumes:
+  influxdb_data:
