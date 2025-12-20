@@ -8,7 +8,7 @@ import redis
 # ----------------------------
 
 mongo_client = MongoClient("mongodb://localhost:27017/")
-mongo_db = mongo_client["university_portal"]
+mongo_db = mongo_client["University_Portal"]
 users_collection = mongo_db["users"]
 
 # ----------------------------
