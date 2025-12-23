@@ -20,7 +20,10 @@ def instructor_dashboard(courses_details, session):
         print("\n--- Instructor Dashboard ---")
         print("\n=== Courses Assigned to You ===")
         for i, course_details in enumerate(courses_details, start=1):
-            print(f"{i}. {course_details['course_name']} - Section {course_details['section']}")
+            print(
+                f"{i}. {course_details['details']['course_name']} "
+                f"- Section {course_details['details']['section']}"
+            )
 
         print(f"{len(courses_details) + 1}. Exit")
         choice = input("Enter your choice: ")
@@ -44,11 +47,16 @@ def instructor_dashboard(courses_details, session):
 def add_course_screen(course_details, session):
 
     print("\n=== Course Details ===")
-    print(f"{course_details['course_name']} - Section {course_details['section']}")
+    print(f"{course_details['details']['course_name']} - Section {course_details['details']['section']}")
     print("Time:")
-    print(f"    {course_details['schedule']}")
-    print(f"Room: {course_details['room']}")
-    print(f"Registered Students: {course_details['registered_students_count']}")
+    schedule = course_details["details"]["schedule"]
+    print(
+        f"Days: {', '.join(schedule['days'])} | "
+        f"Time: {schedule['start_time']} - {schedule['end_time']}"
+    )
+
+    print(f"Room: {course_details['details']['room']}")
+    print(f"Registered Students: {course_details['details']['registered_students_count']}")
 
     while True:
         if not is_session_valid(session):

@@ -8,7 +8,7 @@ import redis
 # ----------------------------
 
 mongo_client = MongoClient("mongodb://localhost:27017/")
-mongo_db = mongo_client["University_Portal"]
+mongo_db = mongo_client["university_portal"]
 users_collection = mongo_db["users"]
 
 # ----------------------------
@@ -21,7 +21,7 @@ redis_client = redis.Redis(
     decode_responses=True
 )
 
-SESSION_TTL_SECONDS = 10
+SESSION_TTL_SECONDS = 600
 
 
 

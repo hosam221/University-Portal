@@ -1,5 +1,7 @@
 import time
+from services.academic_network_service import create_instructor_node, create_student_node, link_instructor_to_course
 from services.auth_user_service import validate_session, refresh_user_session
+from services.student_information_service import create_course, get_available_instructors, get_available_rooms, register_instructor, register_student
 
 def ensure_session(session):
 
@@ -32,10 +34,10 @@ def dean_dashboard(session):
                 add_course_screen(session)
 
             case "2":
-                pass
+                create_student_screen(session)
 
             case "3":
-                pass
+                create_instructor_screen(session)
 
             case "4":
                 pass
@@ -86,24 +88,130 @@ def add_course_screen(session):
                 time.sleep(1)
     
     print("Time format: HH:M - e.g. 14:30")
-    start_time  = input("Enter start time and end time: ")
-    end_time  = input("Enter start time and end time: ")
+    start_time  = input("Enter start time: ")
+    end_time  = input("Enter end time: ")
+    schedule = {
+        "days": days,
+        "start_time": start_time,
+        "end_time": end_time
+    }
     input("Press any key to Find Availability...")
     if not is_session_valid(session):
         return
     refresh_user_session(session["sessionID"])
-    # available_rooms = get_available_rooms(time, days)
-    # available_instructors = get_available_instructors(time, days)
+    available_rooms = get_available_rooms(schedule)
+    available_instructors = get_available_instructors(schedule)
     print(", ".join(days), f": {start_time} - {end_time}")
-    available_rooms = ["bbb", "ccc"]
-    available_instructors = ["a", 'b']
-    print("Rooms:")
-    for i, room in enumerate(available_rooms, start=1):
-        print(f"{i}.  - {room}")
+    if not available_rooms:
+        print("❌ No rooms available at this time.")
+        time.sleep(1)
+        return
+    
+    while True:
+        print("Rooms:")
+        for i, room in enumerate(available_rooms, start=1):
+            print(f"{i}.  - {room}")
 
-    print("Instructors:")
-    for i, instructor in enumerate(available_instructors, start=1):
-        print(f"{i}.  - {instructor}")
+        room_choice = input("Enter your choice: ")
+        if not room_choice.isdigit():
+            print("❗ Invalid choice, please enter a number.")
+            time.sleep(1)
+            continue
+        room_index = int(room_choice)
 
-    # course_name = input("Insert Course Name: ")
-    # section = input("Insert Course Section: ")
+        if room_index < 1 or room_index > len(available_rooms):
+            print("❗Invalid choice, please try again.")
+            time.sleep(1)
+        else:
+            selected_room = available_rooms[room_index - 1]
+            break
+
+    if not available_instructors:
+        print("❌ No instructors available at this time.")
+        time.sleep(1)
+        return
+    
+    while True:
+        print("Instructors:")
+        for i, instructor in enumerate(available_instructors, start=1):
+            print(f"{i}.  - {instructor['full_name']}")
+
+        instructor_choice = input("Enter your choice: ")
+        if not instructor_choice.isdigit():
+            print("❗ Invalid choice, please enter a number.")
+            time.sleep(1)
+            continue
+        instructor_index = int(instructor_choice)
+
+        if instructor_index < 1 or instructor_index > len(available_instructors):
+            print("❗Invalid choice, please try again.")
+            time.sleep(1)
+        else:
+            selected_instructor = available_instructors[instructor_index - 1]
+            instructor_id = selected_instructor['instructor_id']
+            break
+    course_id = input("Enter course code (e.g. 8999): ").strip().upper()
+    course_name = input("Insert Course Name: ")
+    section = input("Insert Course Section: ")
+    courseData = {
+        "course_id": course_id,
+        "details": {
+            "course_name": course_name,
+            "section": section,
+            "schedule": schedule,
+            "room": selected_room,
+            "instructor_name": selected_instructor['full_name'],
+            "registered_students_count": 0
+        }
+    }
+    input("Press any key to  Create Course...")
+    if not is_session_valid(session):
+        return
+    refresh_user_session(session["sessionID"])
+    create_course(courseData)
+    link_instructor_to_course(selected_instructor['instructor_id'], course_id)
+
+def create_student_screen(session):
+    print("===Create Student===")
+    full_name = input("Insert full name: ")
+    student_id = input("Insert Student ID: ")
+    password = input("Insert password: ")
+    input("Press any key to  Create Student...")
+    if not is_session_valid(session):
+        return
+    refresh_user_session(session["sessionID"])
+    studentData = {
+        "student_id": student_id,
+        "full_name": full_name
+    }
+    userData = {
+        "user_id": student_id,
+        "password": password,
+        "role": "student"
+    }
+
+    register_student(studentData, userData)
+    create_student_node(student_id, full_name)
+
+def create_instructor_screen(session):
+    print("===Create Student===")
+    full_name = input("Insert full name: ")
+    instructor_id = input("Insert instructor ID: ")
+    password = input("Insert password: ")
+    input("Press any key to  Create instructor...")
+    if not is_session_valid(session):
+        return
+    refresh_user_session(session["sessionID"])
+    instructorData = {
+        "instructor_id": instructor_id,
+        "full_name": full_name
+    }
+    userData = {
+        "user_id": instructor_id,
+        "password": password,
+        "role": "student"
+    }
+
+    register_instructor(instructorData, userData)
+    create_instructor_node(instructor_id)
+        

@@ -6,7 +6,7 @@ from pymongo.errors import PyMongoError
 import json
 
 mongo_client = MongoClient("mongodb://localhost:27017/")
-mongo_db = mongo_client["University_Portal"]
+mongo_db = mongo_client["university_portal"]
 assignments_col: Collection = mongo_db["assignments"]
 
 redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
