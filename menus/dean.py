@@ -1,8 +1,8 @@
 import time
 from services.academic_network_service import create_instructor_node, create_student_node, link_instructor_to_course
 from services.auth_user_service import validate_session, refresh_user_session
+from services.course_activity_service import invalidate_available_courses_cache, invalidate_instructor_courses_cache
 from services.student_information_service import create_course, get_available_instructors, get_available_rooms, register_instructor, register_student
-
 def ensure_session(session):
 
     if not validate_session(session["sessionID"])["valid"]:
@@ -108,9 +108,13 @@ def add_course_screen(session):
         return
     
     while True:
-        print("Rooms:")
+        print("\n--- Available Rooms ---")
+        print("-" * 35)
+
         for i, room in enumerate(available_rooms, start=1):
-            print(f"{i}.  - {room}")
+            print(f"{i:>2}. Room: {room['room']}")
+            print(f"     👥 Capacity: {room['capacity']}")
+            print("-" * 35)
 
         room_choice = input("Enter your choice: ")
         if not room_choice.isdigit():
@@ -123,7 +127,7 @@ def add_course_screen(session):
             print("❗Invalid choice, please try again.")
             time.sleep(1)
         else:
-            selected_room = available_rooms[room_index - 1]
+            selected_room = available_rooms[room_index - 1]['room']
             break
 
     if not available_instructors:
@@ -170,6 +174,9 @@ def add_course_screen(session):
     refresh_user_session(session["sessionID"])
     create_course(courseData)
     link_instructor_to_course(selected_instructor['instructor_id'], course_id)
+    invalidate_instructor_courses_cache(selected_instructor['instructor_id'])
+    invalidate_available_courses_cache()
+
 
 def create_student_screen(session):
     print("===Create Student===")

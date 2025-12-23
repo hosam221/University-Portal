@@ -1,4 +1,4 @@
-from typing import Any, List
+from typing import Any, List, Optional
 import redis
 from pymongo import MongoClient
 from pymongo.collection import Collection
@@ -47,8 +47,14 @@ def invalidate_instructor_courses_cache(instructorID: str) -> dict:
     redis_client.delete(_k_instructor_courses(instructorID))
     return {"success": True}
 
-def invalidate_available_courses_cache(studentID: str) -> dict:
-    redis_client.delete(_k_available_courses(studentID))
+def invalidate_available_courses_cache() -> dict:
+    keys = redis_client.keys("available_courses:*")
+    if keys:
+        redis_client.delete(*keys)
+    return {"success": True, "deleted_keys": len(keys)}
+
+def invalidate_student_available_courses_cache(student_id) -> dict:
+    redis_client.delete(_k_available_courses(student_id)) 
     return {"success": True}
 
 def invalidate_instructor_course_assignments_cache(instructorID: str) -> dict:
@@ -115,6 +121,58 @@ def cache_pending_tasks(studentID: str, tasks: List[dict]) -> dict:
     redis_client.set(key, json.dumps(tasks))
     redis_client.expire(key, DEFAULT_CACHE_TTL)
     return {"success": True}
+
+import json
+from typing import List, Optional
+
+def get_cached_instructor_courses(instructorID: str) -> Optional[List[dict]]:
+    key = _k_instructor_courses(instructorID)
+    data = redis_client.get(key)
+    if not data:
+        return None
+    return json.loads(data)
+
+def get_cached_course_assignments(courseID: str) -> Optional[List[dict]]:
+    key = _k_course_assignments(courseID)
+    data = redis_client.get(key)
+    if not data:
+        return None
+    return json.loads(data)
+
+def get_cached_enrolled_students(courseID: str) -> Optional[List[dict]]:
+    key = _k_enrolled_students(courseID)
+    data = redis_client.get(key)
+    if not data:
+        return None
+    return json.loads(data)
+
+def get_cached_available_courses(studentID: str) -> Optional[List[dict]]:
+    key = _k_available_courses(studentID)
+    data = redis_client.get(key)
+    if not data:
+        return None
+    return json.loads(data)
+
+def get_cached_student_courses(studentID: str) -> Optional[List[dict]]:
+    key = _k_student_courses(studentID)
+    data = redis_client.get(key)
+    if not data:
+        return None
+    return json.loads(data)
+
+def get_cached_student_course_details(studentID: str, courseID: str) -> Optional[dict]:
+    key = _k_student_course_details(studentID, courseID)
+    data = redis_client.get(key)
+    if not data:
+        return None
+    return json.loads(data)
+
+def get_cached_pending_tasks(studentID: str) -> Optional[List[dict]]:
+    key = _k_pending_tasks(studentID)
+    data = redis_client.get(key)
+    if not data:
+        return None
+    return json.loads(data)
 
 
 # MongoDB Functions

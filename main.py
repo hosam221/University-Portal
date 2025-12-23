@@ -6,7 +6,7 @@ from services.academic_network_service import get_instructor_courses_ids
 from services.auth_user_service import create_user_session
 import time
 
-from services.student_information_service import get_course_details, get_courses
+from services.student_information_service import get_courses
 
 while True :
     print("1. login")
@@ -20,7 +20,7 @@ while True :
                 case "student":
                     # log_student_login(studentID,loginevent)
                     # update_weekly_login_count(studentID)
-                    student_dashboard(session)
+                    student_dashboard(session, current_user['userID'])
 
                 case "instructor":
                     courseIDs = get_instructor_courses_ids(current_user['userID'])

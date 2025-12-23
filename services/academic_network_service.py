@@ -147,17 +147,17 @@ def get_instructor_courses_ids(instructorID: str) -> list[str]:
 
     
 
-def get_student_enrolled_course_ids(studentID: str) -> dict:
+def get_student_enrolled_course_ids(studentID: str) -> list[str]:
     try:
         rows = read(
             f"MATCH (s:Student {{id:'{studentID}'}})-[:ENROLLED_IN]->(c:Course) "
             f"RETURN c.id"
         )
-        course_ids = [row["c.id"] for row in rows]
-        return {"courseIDs": course_ids}
+        return [row["c.id"] for row in rows]
 
-    except Neo4jError as e:
-        return {"error": str(e)}
+    except Neo4jError:
+        return []
+
 
 
 def get_course_students(courseID: str) -> dict:

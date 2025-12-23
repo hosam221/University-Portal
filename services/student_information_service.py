@@ -179,7 +179,7 @@ def create_course(courseData):
     schedule = courseData["details"]["schedule"]
     room = courseData["details"]["room"]
 
-    available_rooms = get_available_rooms(schedule)
+    available_rooms = [r["room"] for r in get_available_rooms(schedule)]
     if room not in available_rooms:
         raise ValueError(f"Room {courseData['details']['room']} is not available at this time!")
 
@@ -231,12 +231,56 @@ def register_instructor(instructorData,userData):
 # Retrieval Functions
 # ==============================
 
-def get_course_details(courseID):
+def get_course_details(courseID: str, studentID: str) -> dict:
     course = courses_col.find_one(
         {"course_id": courseID},
         {"_id": 0}
     )
-    return course
+
+    if not course:
+        return {"error": "Course not found"}
+
+    assignments = list(assignments_col.find(
+        {"course_id": courseID},
+        {"_id": 0}
+    ))
+
+    completed_tasks = []
+    pending_tasks = []
+
+    for a in assignments:
+        submitted_students = {
+            ans["student_id"] for ans in a.get("answer_text", [])
+        }
+
+        task_info = {
+            "assignment_id": a.get("assignment_id"),
+            "title": a.get("title"),
+            "description": a.get("description"),
+            "deadline": a.get("deadline"),
+            "max_grade": a.get("max_grade")
+        }
+
+        if studentID in submitted_students:
+            grade = None
+            for g in a.get("grades", []):
+                if g["student_id"] == studentID:
+                    grade = g.get("grade")
+                    break
+
+            completed_tasks.append({
+                **task_info,
+                "grade": grade
+            })
+        else:
+            pending_tasks.append(task_info)
+
+    return {
+        "course": course,
+        "completed_tasks": completed_tasks,
+        "pending_tasks": pending_tasks
+    }
+
 
 
 
@@ -253,8 +297,7 @@ def get_available_rooms(schedule):
     target_start = schedule["start_time"]
     target_end = schedule["end_time"]
 
-    cursor_rooms = rooms_col.find({}, {"room": 1, "_id": 0})
-    all_rooms = [r["room"] for r in cursor_rooms]
+    all_rooms = list(rooms_col.find({}, {"_id": 0}))
 
     busy_cursor = courses_col.find(
     {
@@ -279,9 +322,10 @@ def get_available_rooms(schedule):
 
     available_rooms = []
 
-    for room in all_rooms:
-        if room not in busy_rooms:
-            available_rooms.append(room)
+    for room_doc in all_rooms:
+        if room_doc["room"] not in busy_rooms:
+            available_rooms.append(room_doc)
+
     return available_rooms
 
 
@@ -384,15 +428,16 @@ def get_available_courses_for_registration(enrolled_ids):
     if not enrolled_ids:
         cursor = courses_col.find(
             {},
-            {"details.course_name": 1, "course_id": 1, "_id": 0}
+            {"_id": 0}
         )
     else:
         cursor = courses_col.find(
             {"course_id": {"$nin": enrolled_ids}},
-            {"details.course_name": 1, "course_id": 1, "_id": 0}
+            {"_id": 0}
         )
 
     return list(cursor)
+
 
 
 
