@@ -234,6 +234,3 @@ def get_student_course_network(studentID: str, courseID: str) -> dict:
 
     except Neo4jError as e:
         return {"error": str(e)}
-
-
-

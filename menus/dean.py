@@ -156,12 +156,10 @@ def add_course_screen(session):
             break
     course_id = input("Enter course code (e.g. 8999): ").strip().upper()
     course_name = input("Insert Course Name: ")
-    section = input("Insert Course Section: ")
     courseData = {
         "course_id": course_id,
         "details": {
             "course_name": course_name,
-            "section": section,
             "schedule": schedule,
             "room": selected_room,
             "instructor_name": selected_instructor['full_name'],

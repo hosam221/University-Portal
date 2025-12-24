@@ -17,7 +17,7 @@ assignments_col = mongo_db["assignments"]
 rooms_col = mongo_db["rooms"]
 
 courses_col.create_index(
-    [("course_id", 1), ("details.section", 1)],
+    [("course_id", 1)],
     unique=True
 )
 
@@ -156,7 +156,6 @@ def create_course(courseData):
 
     validate_required_fields(courseData["details"], [
     "course_name",
-    "section",
     "schedule",
     "room",
     "instructor_name",
@@ -166,13 +165,12 @@ def create_course(courseData):
     existing_course = courses_col.find_one(
         {
             "course_id": courseData["course_id"],
-            "details.section": courseData["details"]["section"]
         }
     )
 
     if existing_course:
         raise ValueError(
-            f"Course {courseData['course_id']} section {courseData['details']['section']} already exists"
+            f"Course {courseData['course_id']} already exists"
         )
 
 # 3. --- Time/Room Conflict Check ---
@@ -484,31 +482,3 @@ def get_student_course_performance(studentID, courseID):
     }
 
     return performance_card
-# print(get_available_rooms({
-#     "days": ["Monday"],
-#     "start_time": "10:00",
-#     "end_time": "11:00"
-# }))
-
-# rooms_col.insert_many([
-#     {"room": "C101", "capacity": 20},
-#     {"room": "C102", "capacity": 20},
-#     {"room": "C103", "capacity": 20}
-# ])
-# courseData = {
-#     "course_id": "CS101",
-#     "course_name": "Introduction to Computer Science",
-#     "section": "1",
-#     "schedule": {
-#         "days": ["Monday", "Wednesday"],
-#         "start_time": "10:00",
-#         "end_time": "11:00"
-#     },
-#     "room": "C101",
-#     "instructor_name": "Dr. Ahmad Ali",
-#     "registered_students_count": 0
-# }
-# courseData["instructor_name"] = "Dr. Sara Hassan"
-
-# result = create_course(courseData)
-# print(result)

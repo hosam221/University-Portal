@@ -67,7 +67,6 @@ def register_course_screen(session, user_id):
             schedule = details.get("schedule", {})
 
             course_name = details.get("course_name", "Unknown Course")
-            section = details.get("section", "X")
             instructor = details.get("instructor_name", "Unknown Instructor")
             room = details.get("room", "Unknown Room")
             registered = details.get("registered_students_count", 0)
@@ -82,7 +81,7 @@ def register_course_screen(session, user_id):
             days_str = " & ".join(days) if days else "N/A"
             time_str = f"{days_str} {start}-{end}" if start and end else "N/A"
 
-            print(f"{idx}. {course_name} Section {section}")
+            print(f"{idx}. {course_name}")
             print(f"   Instructor: {instructor}")
             print(f"   Time: {time_str}")
             print(f"   Room: {room}")
@@ -128,8 +127,7 @@ def my_courses_screen(session, user_id):
         for i, course in enumerate(student_courses, start=1):
             details = course.get("details", {})
             course_name = details.get("course_name", "Unknown")
-            section = details.get("section", "X")
-            print(f"{i}. {course_name} - Section {section}")
+            print(f"{i}. {course_name}")
         print(f"{len(student_courses) + 1}. Exit")
         choice = input("Enter your choice: ")
         if not is_session_valid(session):
@@ -167,7 +165,6 @@ def my_courses_screen(session, user_id):
     schedule = details.get("schedule", {})
 
     course_name = details.get("course_name", "Unknown Course")
-    section = details.get("section", "X")
     instructor = details.get("instructor_name", "Unknown Instructor")
 
     days = schedule.get("days", [])
@@ -181,7 +178,7 @@ def my_courses_screen(session, user_id):
         room = room.get("room", "Unknown Room")
 
     print("\n" + "=" * 55)
-    print(f"📘 {course_name}  |  Section {section}")
+    print(f"📘 {course_name} ")
     print(f"👨‍🏫 Instructor: {instructor}")
     print(f"⏰ Time       : {time_str}")
     print(f"🏫 Room       : {room}")

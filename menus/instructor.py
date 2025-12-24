@@ -25,7 +25,6 @@ def instructor_dashboard(courses_details, session, user_id):
         for i, course_details in enumerate(courses_details, start=1):
             print(
                 f"{i}. {course_details['details']['course_name']} "
-                f"- Section {course_details['details']['section']}"
             )
 
         print(f"{len(courses_details) + 1}. Exit")
@@ -50,7 +49,7 @@ def instructor_dashboard(courses_details, session, user_id):
 def view_course_screen(course_details, session, user_id):
 
     print("\n=== Course Details ===")
-    print(f"{course_details['details']['course_name']} - Section {course_details['details']['section']}")
+    print(f"{course_details['details']['course_name']}")
     print("Time:")
     schedule = course_details["details"]["schedule"]
     print(
@@ -74,7 +73,7 @@ def view_course_screen(course_details, session, user_id):
         refresh_user_session(session["sessionID"])
         match choice:
             case "1":
-                add_assignment_screen(session, course_details['course_id'], user_id)
+                add_assignment_screen(session, course_details['course_id'],  user_id,)
 
             case "2":
                 pass
@@ -107,6 +106,6 @@ def add_assignment_screen(session, course_id, user_id):
         return
     refresh_user_session(session["sessionID"])
     create_assignment(course_id, assignmentData)
-    link_assignment_to_course(assignmentData["assignment_id"], course_id)
+    link_assignment_to_course(assignmentData["assignment_id"], course_id, )
     invalidate_instructor_course_assignments_cache(user_id)
     invalidate_course_details_cache(course_id)
