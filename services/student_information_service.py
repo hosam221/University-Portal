@@ -16,10 +16,16 @@ enrollments_col = mongo_db["enrollments"]
 assignments_col = mongo_db["assignments"]
 rooms_col = mongo_db["rooms"]
 
-courses_col.create_index(
-    [("course_id", 1)],
+users_col.create_index([("user_id", 1)], unique=True)
+students_col.create_index([("student_id", 1)], unique=True)
+instructors_col.create_index([("instructor_id", 1)], unique=True)
+courses_col.create_index([("course_id", 1)], unique=True)
+rooms_col.create_index([("room", 1)], unique=True)
+enrollments_col.create_index(
+    [("student_id", 1), ("course_id", 1)],
     unique=True
 )
+
 
 
 
@@ -33,11 +39,15 @@ def generate_id(role):
 def validate_required_fields(data, required_fields):
     for field in required_fields:
         if field not in data:
-            raise ValueError(f"Missing field: {field}")
-
+            return {
+                "success": False,
+                "error": f"Missing field: {field}"
+            }
+    return {"success": True}
 
 
 def has_time_conflict(student_id, new_course):
+    
     enrolled_courses_ids = enrollments_col.find(
         {"student_id": student_id},
         {"course_id": 1, "_id": 0}
@@ -76,30 +86,45 @@ def has_time_conflict(student_id, new_course):
 # ==============================
 # 
 def create_user(userData):
-    validate_required_fields(userData, ["user_id", "password", "role"])
-    
+    res = validate_required_fields(userData, ["user_id", "password", "role"])
+    if not res["success"]:
+        return res
     target_role = userData["role"]
     target_id = userData["user_id"] #     student_id or instructor_id
 
     if target_role == "student":
         entity = students_col.find_one({"student_id": target_id})
         if not entity:
-            raise ValueError(f"No Student profile found with ID {target_id}. Create student first.")
+            return {
+                "success": False,
+                "error": f"No Student profile found with ID {target_id}. Create student first."
+            }        
 
     elif target_role == "instructor":
         entity = instructors_col.find_one({"instructor_id": target_id})
         if not entity:
-            raise ValueError(f"No Instructor profile found with ID {target_id}. Create instructor first.")
+            return {
+                "success": False,
+                "error": f"No Instructor profile found with ID {target_id}. Create instructor first."
+            }        
 
     elif target_role == "dean":
         pass 
 
     else:
-        raise ValueError("Invalid role")
+        return {
+            "success": False,
+            "error": "Invalid role"
+        }
+
     
     existing_user = users_col.find_one({"user_id": target_id})
     if existing_user:
-        raise ValueError("User account already exists for this ID")
+        return {
+            "success": False,
+            "error": "User account already exists for this ID"
+        }
+
 
     password = bcrypt.hashpw(
         userData["password"].encode("utf-8"),
@@ -115,46 +140,62 @@ def create_user(userData):
     users_col.insert_one(user_doc)
     
     return {
+        "success": True,
         "message": "User created successfully",
-        "user_id": user_doc["user_id"]   
+        "user_id": user_doc["user_id"]
     }
 
+
 def create_student(studentData):
-    validate_required_fields(studentData, ["student_id", "full_name"])
-    
+    res = validate_required_fields(studentData, ["student_id", "full_name"])
+    if not res["success"]:
+        return res
     existing_student = students_col.find_one(
         {"student_id": studentData["student_id"]}
     )
     
     if existing_student:
-        raise ValueError("Student with this student_id already exists")
-    
+        return {
+            "success": False,
+            "error": "Student with this student_id already exists"
+        }
+
     studentData["s_id"] = generate_id("student")
     result = students_col.insert_one(studentData)
-
     return {
-        "message": "Student Created!",
-        "s_id": studentData["s_id"]
-    }
+    "success": True,
+    "message": "Student Created!",
+    "s_id": studentData["s_id"]
+}
+
 
 def create_instructor(instructorData):
-    validate_required_fields(instructorData,["instructor_id", "full_name"])
+    res = validate_required_fields(instructorData,["instructor_id", "full_name"])
+    if not res["success"]:
+        return res
     existing_instructor = instructors_col.find_one(
         {"instructor_id": instructorData["instructor_id"]}
     )
     if existing_instructor:
-        raise ValueError("instructor with this instructor_id already exists")
+        return {
+            "success": False,
+            "error": "Instructor with this instructor_id already exists"
+        }
     instructorData["i_id"] = generate_id("instructor")
     result=instructors_col.insert_one(instructorData)
     
     return {
+        "success": True,
         "message": "Instructor Created!",
         "i_id": instructorData["i_id"]
     }
 
 def create_course(courseData):
+    res = validate_required_fields(courseData, ["course_id", "details"])
+    if not res["success"]:
+        return res
 
-    validate_required_fields(courseData["details"], [
+    res = validate_required_fields(courseData["details"], [
     "course_name",
     "schedule",
     "room",
@@ -162,6 +203,8 @@ def create_course(courseData):
     "registered_students_count"
 ])
 
+    if not res["success"]:
+        return res
     existing_course = courses_col.find_one(
         {
             "course_id": courseData["course_id"],
@@ -169,9 +212,10 @@ def create_course(courseData):
     )
 
     if existing_course:
-        raise ValueError(
-            f"Course {courseData['course_id']} already exists"
-        )
+        return {
+            "success": False,
+            "error": f"Course {courseData['course_id']} already exists"
+        }
 
 # 3. --- Time/Room Conflict Check ---
     schedule = courseData["details"]["schedule"]
@@ -179,7 +223,10 @@ def create_course(courseData):
 
     available_rooms = [r["room"] for r in get_available_rooms(schedule)]
     if room not in available_rooms:
-        raise ValueError(f"Room {courseData['details']['room']} is not available at this time!")
+        return {
+            "success": False,
+            "error": f"Room {room} is not available at this time"
+        }
 
 # 4. --- Instructor Conflict Check ---
     instructor = courseData["details"]["instructor_name"]
@@ -189,41 +236,56 @@ def create_course(courseData):
     i["full_name"] for i in available_instructors
     ]
     if instructor not in available_names:
-        raise ValueError(f"Instructor {courseData['details']['instructor_name']} is busy at this time!")    
+        return {
+            "success": False,
+            "error": f"Instructor {instructor} is busy at this time"
+        }
+
 
     courseData["c_id"] = generate_id("course")
     result=courses_col.insert_one(courseData)
     return {
+        "success": True,
         "message": "Course Created!",
         "mongo_id": str(result.inserted_id),
         "c_id": courseData["c_id"]
     }
 
-def register_student(studentData,userData):
-    student=None
-    try:
-        student=create_student(studentData)
-        create_user(userData)
-        return " student and user created successfully"
-    # Rollback
-    except Exception as e:
-        if student:
-            students_col.delete_one({"s_id":student["s_id"]})
-        raise e
 
-def register_instructor(instructorData,userData):
-    instructor=None
-    try:
-        instructor=create_instructor(instructorData)
-        userData["user_id"] = instructorData["instructor_id"]
-        userData["role"] = "instructor"
-        create_user(userData)
-        return " instructor and user created successfully"
-    # Rollback
-    except Exception as e:
-        if instructor:
-            instructors_col.delete_one({"i_id":instructor["i_id"]})
-        raise e
+def register_student(studentData, userData):
+    student = create_student(studentData)
+    if not student["success"]:
+        return student
+
+    user = create_user(userData)
+    if not user["success"]:
+        students_col.delete_one({"s_id": student["s_id"]})
+        return user
+
+    return {
+        "success": True,
+        "message": "Student and user created successfully"
+    }
+
+
+def register_instructor(instructorData, userData):
+    instructor = create_instructor(instructorData)
+    if not instructor["success"]:
+        return instructor
+
+    userData["user_id"] = instructorData["instructor_id"]
+    userData["role"] = "instructor"
+
+    user = create_user(userData)
+    if not user["success"]:
+        instructors_col.delete_one({"i_id": instructor["i_id"]})
+        return user
+
+    return {
+        "success": True,
+        "message": "Instructor and user created successfully"
+    }
+
 
 # ==============================
 # Retrieval Functions
@@ -236,7 +298,11 @@ def get_course_details(courseID: str, studentID: str) -> dict:
     )
 
     if not course:
-        return {"error": "Course not found"}
+        return {
+        "success": False,
+        "error": "Course not found"
+    }
+
 
     assignments = list(assignments_col.find(
         {"course_id": courseID},
@@ -278,10 +344,12 @@ def get_course_details(courseID: str, studentID: str) -> dict:
             pending_tasks.append(task_info)
 
     return {
+        "success": True,
         "course": course,
         "completed_tasks": completed_tasks,
         "pending_tasks": pending_tasks
     }
+
 
 
 
@@ -303,13 +371,11 @@ def get_available_rooms(schedule):
 
     busy_cursor = courses_col.find(
     {
-        "details.schedule.days": {
-            "$all": target_days,
-            "$size": len(target_days)
-        }
+        "details.schedule.days": {"$in": target_days}
     },
     {"details.room": 1, "details.schedule": 1, "_id": 0}
 )
+
 
 
 
@@ -347,14 +413,12 @@ def get_available_instructors(schedule):
 ]
     
     busy_cursor = courses_col.find(
-        {
-            "details.schedule.days": {
-                "$all": target_days,# Checks if course has ALL these days
-                "$size": len(target_days)
-            }
-        },
-        {"details.instructor_name": 1, "details.schedule": 1, "_id": 0}
-    )
+    {
+        "details.schedule.days": {"$in": target_days}
+    },
+    {"details.instructor_name": 1, "details.schedule": 1, "_id": 0}
+)
+
 
     busy_instructors = []
 
@@ -382,17 +446,27 @@ def get_available_instructors(schedule):
 def enroll_in_course(studentID, courseID):
     student = students_col.find_one({"student_id": studentID})
     if not student:
-        raise ValueError(f"Student with ID '{studentID}' not found.")
-    
+        return {
+            "success": False,
+            "error": f"Student with ID '{studentID}' not found."
+        }    
     course = courses_col.find_one({"course_id": courseID})
     if not course:
-        raise ValueError(f"Course with ID '{courseID}' not found.")
+        return {
+            "success": False,
+            "error": f"Course with ID '{courseID}' not found."
+        }
+
     
     existing_enrollment = enrollments_col.find_one(
         {"student_id": studentID, "course_id": courseID}
     )
     if existing_enrollment:
-        raise ValueError("Student is already enrolled in this course.")
+        return {
+        "success": False,
+        "error": f"Student is already enrolled in this course."
+    }
+
     # -------------------------------------
     # check capacity:
     room = course["details"]["room"]
@@ -406,13 +480,20 @@ def enroll_in_course(studentID, courseID):
         max_capacity = room_doc.get("capacity", 20)
         
         if current_count >= max_capacity:
-            raise ValueError(f"Course is full! (Capacity: {max_capacity})")
+            return {
+                "success": False,
+                "error": f"Course is full! (Capacity: {max_capacity})"
+            }
+
     else:
         pass
 
     # --------------------------
     if has_time_conflict(studentID, course):
-        raise ValueError("Schedule conflict with another enrolled course.")
+            return {
+            "success": False,
+            "error": f"Schedule conflict with another enrolled course."
+        }
 
     enrollmentData = {
         "e_id": generate_id("enrollment"),
@@ -423,7 +504,11 @@ def enroll_in_course(studentID, courseID):
     enrollments_col.insert_one(enrollmentData)
 
     courses_col.update_one( {"course_id": courseID}, {"$inc": {"details.registered_students_count": 1}} )
-    return "Enrolled Successfully"
+    return {
+        "success": True,
+        "message": "Enrolled Successfully"
+    }
+
 
 
 def get_available_courses_for_registration(enrolled_ids):
@@ -468,7 +553,10 @@ def get_student_performance(studentID):
 def get_student_course_performance(studentID, courseID):
     enrollment = enrollments_col.find_one({"student_id": studentID, "course_id": courseID})
     if not enrollment:
-        return {"error": "Student is not enrolled in this course."}
+        return {
+            "success": False,
+            "error": "Student is not enrolled in this course."
+        }
 
     grade = enrollment.get("grade", "Not Graded yet")
 

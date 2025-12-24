@@ -170,8 +170,12 @@ def add_course_screen(session):
     if not is_session_valid(session):
         return
     refresh_user_session(session["sessionID"])
-    create_course(courseData)
-    link_instructor_to_course(selected_instructor['instructor_id'], course_id)
+    result = create_course(courseData)
+    if not result["success"]:
+        print("⚠️", result["error"])
+    else:
+        print("✅", result["message"])
+        link_instructor_to_course(selected_instructor['instructor_id'], course_id)
     invalidate_instructor_courses_cache(selected_instructor['instructor_id'])
     invalidate_available_courses_cache()
 

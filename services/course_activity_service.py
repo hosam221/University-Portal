@@ -8,6 +8,7 @@ import json
 mongo_client = MongoClient("mongodb://localhost:27017/")
 mongo_db = mongo_client["university_portal"]
 assignments_col: Collection = mongo_db["assignments"]
+assignments_col.create_index([("assignment_id", 1)], unique=True)
 
 redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
