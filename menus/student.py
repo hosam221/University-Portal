@@ -1,7 +1,7 @@
 import time
-from services.academic_network_service import get_student_enrolled_course_ids, link_student_to_course
+from services.academic_network_service import get_student_enrolled_course_ids, link_student_to_assignment, link_student_to_course
 from services.auth_user_service import validate_session, refresh_user_session
-from services.course_activity_service import cache_available_courses, cache_student_course_details, cache_student_courses, get_cached_available_courses, get_cached_student_course_details, get_cached_student_courses, invalidate_enrolled_students_cache, invalidate_student_available_courses_cache, invalidate_student_courses_cache
+from services.course_activity_service import cache_available_courses, cache_student_course_details, cache_student_courses, create_answer_document, get_cached_available_courses, get_cached_student_course_details, get_cached_student_courses, invalidate_enrolled_students_cache, invalidate_student_available_courses_cache, invalidate_student_course_details_cache, invalidate_student_courses_cache, invalidate_student_pending_task_cache
 from services.student_information_service import enroll_in_course, get_available_courses_for_registration, get_course_details, get_courses
 
 from pymongo import MongoClient
@@ -90,7 +90,7 @@ def register_course_screen(session, user_id):
         print(f"{len(available_courses) + 1}. Exit")
         choice = input("Enter your choice: ")
         if not is_session_valid(session):
-            break
+            return
         refresh_user_session(session["sessionID"])
         if not choice.isdigit():
             print("❗ Invalid choice, please enter a number.")
@@ -98,7 +98,7 @@ def register_course_screen(session, user_id):
             continue
         choice = int(choice)
         if choice == (len(available_courses) + 1):
-            break
+            return
         if choice < 1 or choice > len(available_courses):
             print("❗Invalid choice, please try again.")
             time.sleep(1)
@@ -106,7 +106,6 @@ def register_course_screen(session, user_id):
             course_id = available_courses[choice - 1]['course_id']
             student_doc = students_col.find_one({"student_id": user_id}, {"_id": 0, "full_name": 1})
             full_name = student_doc["full_name"] if student_doc else "Unknown"
-
             enroll_in_course(user_id, course_id)
             link_student_to_course(user_id, full_name, course_id)
             invalidate_student_courses_cache(user_id)
@@ -134,7 +133,7 @@ def my_courses_screen(session, user_id):
         print(f"{len(student_courses) + 1}. Exit")
         choice = input("Enter your choice: ")
         if not is_session_valid(session):
-            break
+            return
         refresh_user_session(session["sessionID"])
         if not choice.isdigit():
             print("❗ Invalid choice, please enter a number.")
@@ -142,13 +141,14 @@ def my_courses_screen(session, user_id):
             continue
         choice = int(choice)
         if choice == (len(student_courses) + 1):
-            break
+            return
         if choice < 1 or choice > len(student_courses):
             print("❗Invalid choice, please try again.")
             time.sleep(1)
         else:
             course_id = student_courses[choice - 1]['course_id']
             student_course_details = get_cached_student_course_details(user_id, course_id)
+            # log_student_event (studentID, courseID, VisitCourse, timestamp)
             if not student_course_details:
                 student_course_details = get_course_details(course_id, user_id)
                 cache_student_course_details(user_id, course_id, student_course_details)
@@ -193,13 +193,13 @@ def my_courses_screen(session, user_id):
         print("3. Exit")
         choice = input("Enter your choice: ")
         if not is_session_valid(session):
-            break
+            return
         refresh_user_session(session["sessionID"])
 
         match choice:
             case "1":
                 pending = student_course_details.get("pending_tasks", []) or []
-                pending_tasks(session, user_id, pending)
+                pending_tasks(session, user_id, pending, course_id)
 
             case "2":
                 completed = student_course_details.get("completed_tasks", []) or []
@@ -213,6 +213,7 @@ def my_courses_screen(session, user_id):
                         desc = t.get("description", "")
                         max_grade = t.get("max_grade", "?")
                         grade = t.get("grade", None)
+                        answer = t.get("answer", '')
 
                         grade_str = "Not graded yet" if grade is None else f"{grade}/{max_grade}"
 
@@ -220,11 +221,12 @@ def my_courses_screen(session, user_id):
                         if desc:
                             print(f"   Description: {desc}")
                         print(f"   Grade      : {grade_str}")
+                        print(f"   Answer     : {answer}")
                         print("-" * 55)
 
 
             case "3":
-                break
+                return
 
             case _:
                 print("❗Invalid choice, please try again.")
@@ -232,14 +234,76 @@ def my_courses_screen(session, user_id):
 
 
 
-def pending_tasks(session, user_id, pending):
+def pending_tasks(session, user_id, pending, course_id):
     print("\n🕒 Pending Tasks")
     print("-" * 55)
+    
     if not pending:
         print("✅ No pending tasks.")
-    else:
-        for i, t in enumerate(pending, start=1):
-            title = t.get("title", "Untitled")
-            deadline = t.get("deadline", "N/A")
-            print(f"{i}. {title}  (Deadline: {deadline})")
+        return
     
+    for i, t in enumerate(pending, start=1):
+        title = t.get("title", "Untitled")
+        description = t.get("description", "No description provided.")
+        deadline = t.get("deadline", "N/A")
+        max_grade = t.get("max_grade", "?")
+        notes = t.get("notes", "")  # أي ملاحظات إضافية
+        
+        print(f"{i}. {title}")
+        print(f"   Description : {description}")
+        print(f"   Deadline    : {deadline}")
+        print(f"   Max Grade   : {max_grade}")
+        print("-" * 55)
+    print(f"{len(pending) + 1}. Exit")
+    while True:
+
+        choice = input("Enter your choice: ")
+        if not is_session_valid(session):
+            return
+        refresh_user_session(session["sessionID"])
+        if not choice.isdigit():
+            print("❗ Invalid choice, please enter a number.")
+            time.sleep(1)
+            continue
+        choice = int(choice)
+        if choice == (len(pending) + 1):
+            return
+        if choice < 1 or choice > len(pending):
+            print("❗Invalid choice, please try again.")
+            time.sleep(1)
+        else:
+            assignment = pending[choice - 1]
+            assignment_id = assignment['assignment_id']
+            print(f"Title : {assignment['title']}")
+            print(f"   Description : {assignment['description']}")
+            print(f"   Deadline    : {assignment['deadline']}")
+            print(f"   Max Grade   : {assignment['max_grade']}")
+            print("-" * 55)
+            answer_text = input("Enter your answer: ")
+            if not is_session_valid(session):
+                return
+            refresh_user_session(session["sessionID"])
+
+            answerData = {
+                "student_id": user_id,
+                "text": answer_text
+            }
+
+            result = create_answer_document(user_id, assignment_id, answerData)
+
+            if result.get("success"):
+                print("✅ Your answer has been submitted successfully!")
+                student_doc = students_col.find_one({"student_id": user_id}, {"_id": 0, "full_name": 1})
+                full_name = student_doc["full_name"] if student_doc else "Unknown"
+                link_student_to_assignment(user_id, full_name, assignment_id)
+                # log_student_event(studentID, courseID, assignmentID, submit assignment, timestamp)
+                invalidate_student_pending_task_cache(user_id)
+                invalidate_student_course_details_cache(user_id, course_id)
+                pending = [t for t in pending if t['assignment_id'] != assignment_id]
+                return
+            else:
+                print(f"❌ Failed to submit answer: {result.get('error')}")
+            break
+
+
+        

@@ -119,7 +119,7 @@ def link_student_to_assignment(
     assignmentID: str,
 ) -> dict:
     try:
-        create_student_node(studentID,studentName)
+        create_student_node(studentID, studentName)
         create_assignment_node(assignmentID)
 
         write(

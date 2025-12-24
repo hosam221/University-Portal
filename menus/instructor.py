@@ -1,5 +1,8 @@
 import time
+import uuid
+from services.academic_network_service import link_assignment_to_course
 from services.auth_user_service import validate_session, refresh_user_session
+from services.course_activity_service import create_assignment, invalidate_course_details_cache, invalidate_instructor_course_assignments_cache
 
 def ensure_session(session):
 
@@ -12,7 +15,7 @@ def ensure_session(session):
 def is_session_valid(session) -> bool:
     return validate_session(session["sessionID"])["valid"]
 
-def instructor_dashboard(courses_details, session):
+def instructor_dashboard(courses_details, session, user_id):
 
     while True:
         if not ensure_session(session):
@@ -41,10 +44,10 @@ def instructor_dashboard(courses_details, session):
             print("❗Invalid choice, please try again.")
             time.sleep(1)
         else:
-            add_course_screen(courses_details[choice - 1], session)
+            view_course_screen(courses_details[choice - 1], session, user_id)
 
             
-def add_course_screen(course_details, session):
+def view_course_screen(course_details, session, user_id):
 
     print("\n=== Course Details ===")
     print(f"{course_details['details']['course_name']} - Section {course_details['details']['section']}")
@@ -71,7 +74,7 @@ def add_course_screen(course_details, session):
         refresh_user_session(session["sessionID"])
         match choice:
             case "1":
-                pass
+                add_assignment_screen(session, course_details['course_id'], user_id)
 
             case "2":
                 pass
@@ -85,3 +88,25 @@ def add_course_screen(course_details, session):
             case _:
                 print("❗Invalid choice, please try again.")
                 time.sleep(1)
+
+def add_assignment_screen(session, course_id, user_id):
+    assignment_title = input("Enter Assignment title: ")
+    description = input("Enter Description: ")
+    end_date = input("Enter deadline end date (YYYY-MM-DD): ")
+    end_time = input("Enter deadline end time (HH:MM): ")
+    max_grade = input("Enter assignment maximum grade: ")
+    assignmentData = {
+        "assignment_id": str(uuid.uuid4()),
+        "title": assignment_title,
+        "description": description,
+        "deadline": f"{end_date} {end_time}",
+        "max_grade": max_grade
+    }
+    input("Press any key to add assignment...")
+    if not is_session_valid(session):
+        return
+    refresh_user_session(session["sessionID"])
+    create_assignment(course_id, assignmentData)
+    link_assignment_to_course(assignmentData["assignment_id"], course_id)
+    invalidate_instructor_course_assignments_cache(user_id)
+    invalidate_course_details_cache(course_id)

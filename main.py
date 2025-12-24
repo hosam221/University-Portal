@@ -25,7 +25,7 @@ while True :
                 case "instructor":
                     courseIDs = get_instructor_courses_ids(current_user['userID'])
                     courses_details = get_courses(courseIDs)
-                    instructor_dashboard(courses_details, session)
+                    instructor_dashboard(courses_details, session, current_user['userID'])
 
                 case "dean":
                     dean_dashboard(session)

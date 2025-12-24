@@ -247,12 +247,15 @@ def get_course_details(courseID: str, studentID: str) -> dict:
 
     completed_tasks = []
     pending_tasks = []
-
     for a in assignments:
         submitted_students = {
             ans["student_id"] for ans in a.get("answer_text", [])
         }
-
+        student_answer_text = None
+        for ans in a.get("answer_text", []):
+            if ans["student_id"] == studentID:
+                student_answer_text = ans.get("text")
+                break
         task_info = {
             "assignment_id": a.get("assignment_id"),
             "title": a.get("title"),
@@ -270,7 +273,8 @@ def get_course_details(courseID: str, studentID: str) -> dict:
 
             completed_tasks.append({
                 **task_info,
-                "grade": grade
+                "grade": grade,
+                "answer": student_answer_text
             })
         else:
             pending_tasks.append(task_info)

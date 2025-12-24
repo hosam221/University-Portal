@@ -53,6 +53,26 @@ def invalidate_available_courses_cache() -> dict:
         redis_client.delete(*keys)
     return {"success": True, "deleted_keys": len(keys)}
 
+def invalidate_course_details_cache(courseID: str) -> dict:
+    pattern = _k_student_course_details("*", courseID)
+
+    cursor = 0
+    deleted = 0
+
+    while True:
+        cursor, keys = redis_client.scan(cursor=cursor, match=pattern)
+        if keys:
+            redis_client.delete(*keys)
+            deleted += len(keys)
+
+        if cursor == 0:
+            break
+
+    return {
+        "success": True,
+        "deleted_keys": deleted
+    }
+
 def invalidate_student_available_courses_cache(student_id) -> dict:
     redis_client.delete(_k_available_courses(student_id)) 
     return {"success": True}
