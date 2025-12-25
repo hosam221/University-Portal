@@ -78,8 +78,8 @@ def invalidate_student_available_courses_cache(student_id) -> dict:
     redis_client.delete(_k_available_courses(student_id)) 
     return {"success": True}
 
-def invalidate_instructor_course_assignments_cache(instructorID: str) -> dict:
-    redis_client.delete(_k_instructor_course_assignments(instructorID))
+def invalidate_instructor_course_assignments_cache(courseID: str) -> dict:
+    redis_client.delete(_k_course_assignments(courseID))
     return {"success": True}
 
 def invalidate_student_course_details_cache(studentID: str, courseID: str) -> dict:
@@ -221,16 +221,36 @@ def create_assignment(courseID: str, assignmentData: dict) -> dict:
 
 
 def get_answer(studentID: str, assignmentID: str) -> dict:
-    assignment = assignments_col.find_one({"assignment_id": assignmentID}, {"_id": 0, "answer_text": 1})
+    assignment = assignments_col.find_one(
+        {"assignment_id": assignmentID},
+        {"_id": 0, "answer_text": 1, "max_grade": 1, "grades": 1}  # أضفنا grades
+    )
 
     if not assignment:
-        return {"success": False, "answer": None}
+        return {"success": False, "answer": None, "grade": None}
 
+    student_answer = None
     for ans in assignment.get("answer_text", []):
         if ans["student_id"] == studentID:
-            return {"success": True, "answer": ans}
+            student_answer = ans["text"]
+            break
 
-    return {"success": False, "answer": None}
+    student_grade = None
+    for g in assignment.get("grades", []):
+        if g["student_id"] == studentID:
+            student_grade = g["grade"]
+            break
+
+    if student_answer is not None or student_grade is not None:
+        return {
+            "success": True,
+            "answer": student_answer,
+            "grade": student_grade,
+            "maxGrade": assignment.get("max_grade", "00")
+        }
+
+    return {"success": False, "answer": None, "grade": None, "maxGrade": assignment.get("max_grade", "00")}
+
 
 
 def update_grades(assignmentID: str, studentID: str, grade: Any) -> dict:

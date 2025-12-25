@@ -48,12 +48,16 @@ def create_course_node(courseID: str) -> dict:
         return {"error": str(e)}
 
 
-def create_assignment_node(assignmentID: str) -> dict:
+def create_assignment_node(assignmentID: str, assignment_title: str) -> dict:
     try:
-        write(f"MERGE (a:Assignment {{id:'{assignmentID}'}})")
+        write(
+            f"MERGE (a:Assignment {{id:'{assignmentID}'}}) "
+            f"SET a.title = '{assignment_title}'"
+        )
         return {"success": True}
     except Neo4jError as e:
         return {"error": str(e)}
+
 
 
 
@@ -98,10 +102,11 @@ def link_student_to_course(
 def link_assignment_to_course(
     assignmentID: str,
     courseID: str,
+    assignment_title: str
 
 ) -> dict:
     try:
-        create_assignment_node(assignmentID)
+        create_assignment_node(assignmentID, assignment_title)
         create_course_node(courseID)
 
         write(
@@ -117,10 +122,11 @@ def link_student_to_assignment(
     studentID: str,
     studentName: str,
     assignmentID: str,
+    assignment_title: str
 ) -> dict:
     try:
         create_student_node(studentID, studentName)
-        create_assignment_node(assignmentID)
+        create_assignment_node(assignmentID, assignment_title)
 
         write(
             f"MATCH (s:Student {{id:'{studentID}'}}), (a:Assignment {{id:'{assignmentID}'}}) "
@@ -164,23 +170,40 @@ def get_course_students(courseID: str) -> dict:
     try:
         rows = read(
             f"MATCH (s:Student)-[:ENROLLED_IN]->(c:Course {{id:'{courseID}'}}) "
-            f"RETURN s.id"
+            f"RETURN s.id, s.name"
         )
-        student_ids = [row["s.id"] for row in rows]
-        return {"studentIDs": student_ids}
+
+        students = [
+            {
+                "studentID": row["s.id"],
+                "studentName": row["s.name"]
+            }
+            for row in rows
+        ]
+
+        return {"students": students}
 
     except Neo4jError as e:
         return {"error": str(e)}
+
 
 
 def get_course_assignments(courseID: str) -> dict:
     try:
         rows = read(
             f"MATCH (a:Assignment)-[:BELONGS_TO]->(c:Course {{id:'{courseID}'}}) "
-            f"RETURN a.id"
+            f"RETURN a.id, a.title"
         )
-        assignment_ids = [row["a.id"] for row in rows]
-        return {"assignmentIDs": assignment_ids}
+
+        assignments = [
+            {
+                "assignmentID": row["a.id"],
+                "assignmentTitle": row["a.title"]
+            }
+            for row in rows
+        ]
+
+        return {"assignments": assignments}
 
     except Neo4jError as e:
         return {"error": str(e)}

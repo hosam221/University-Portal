@@ -145,46 +145,46 @@ def my_courses_screen(session, user_id):
             time.sleep(1)
         else:
             course_id = student_courses[choice - 1]['course_id']
-            student_course_details = get_cached_student_course_details(user_id, course_id)
-            # log_student_event (studentID, courseID, VisitCourse, timestamp)
-            if not student_course_details:
-                student_course_details = get_course_details(course_id, user_id)
-                cache_student_course_details(user_id, course_id, student_course_details)
-                print("From mongo")
-            else:
-                print("From redis")
             break
-    print("\n--- Course Details ---")
-
-    if not student_course_details or "course" not in student_course_details:
-        print("❗ No course details found.")
-        return
-
-    course = student_course_details.get("course", {})
-    details = course.get("details", {})
-    schedule = details.get("schedule", {})
-
-    course_name = details.get("course_name", "Unknown Course")
-    instructor = details.get("instructor_name", "Unknown Instructor")
-
-    days = schedule.get("days", [])
-    start = schedule.get("start_time", "")
-    end = schedule.get("end_time", "")
-    days_str = " & ".join(days) if days else "N/A"
-    time_str = f"{days_str} {start}-{end}" if start and end else "N/A"
-
-    room = details.get("room", "Unknown Room")
-    if isinstance(room, dict):  # in case old data stored room as dict
-        room = room.get("room", "Unknown Room")
-
-    print("\n" + "=" * 55)
-    print(f"📘 {course_name} ")
-    print(f"👨‍🏫 Instructor: {instructor}")
-    print(f"⏰ Time       : {time_str}")
-    print(f"🏫 Room       : {room}")
-    print("=" * 55)
 
     while True:
+        print("\n--- Course Details ---")
+        student_course_details = get_cached_student_course_details(user_id, course_id)
+        # log_student_event (studentID, courseID, VisitCourse, timestamp)
+        if not student_course_details:
+            student_course_details = get_course_details(course_id, user_id)
+            cache_student_course_details(user_id, course_id, student_course_details)
+            print("From mongo")
+        else:
+            print("From redis")
+        if not student_course_details or "course" not in student_course_details:
+            print("❗ No course details found.")
+            return
+
+        course = student_course_details.get("course", {})
+        details = course.get("details", {})
+        schedule = details.get("schedule", {})
+
+        course_name = details.get("course_name", "Unknown Course")
+        instructor = details.get("instructor_name", "Unknown Instructor")
+
+        days = schedule.get("days", [])
+        start = schedule.get("start_time", "")
+        end = schedule.get("end_time", "")
+        days_str = " & ".join(days) if days else "N/A"
+        time_str = f"{days_str} {start}-{end}" if start and end else "N/A"
+
+        room = details.get("room", "Unknown Room")
+        if isinstance(room, dict):  # in case old data stored room as dict
+            room = room.get("room", "Unknown Room")
+
+        print("\n" + "=" * 55)
+        print(f"📘 {course_name} ")
+        print(f"👨‍🏫 Instructor: {instructor}")
+        print(f"⏰ Time       : {time_str}")
+        print(f"🏫 Room       : {room}")
+        print("=" * 55)
+
         print("1. Pending Tasks")
         print("2. Completed Tasks")
         print("3. Exit")
@@ -212,7 +212,7 @@ def my_courses_screen(session, user_id):
                         grade = t.get("grade", None)
                         answer = t.get("answer", '')
 
-                        grade_str = "Not graded yet" if grade is None else f"{grade}/{max_grade}"
+                        grade_str = "Not graded yet" if grade is None else f"{grade} from {max_grade}"
 
                         print(f"{i}. {title}")
                         if desc:
@@ -220,6 +220,7 @@ def my_courses_screen(session, user_id):
                         print(f"   Grade      : {grade_str}")
                         print(f"   Answer     : {answer}")
                         print("-" * 55)
+                input("Press any key to back...")
 
 
             case "3":
@@ -237,6 +238,7 @@ def pending_tasks(session, user_id, pending, course_id):
     
     if not pending:
         print("✅ No pending tasks.")
+        input("Press any key to back...")
         return
     
     for i, t in enumerate(pending, start=1):
@@ -252,8 +254,8 @@ def pending_tasks(session, user_id, pending, course_id):
         print(f"   Max Grade   : {max_grade}")
         print("-" * 55)
     print(f"{len(pending) + 1}. Exit")
-    while True:
 
+    while True:
         choice = input("Enter your choice: ")
         if not is_session_valid(session):
             return
@@ -271,35 +273,48 @@ def pending_tasks(session, user_id, pending, course_id):
         else:
             assignment = pending[choice - 1]
             assignment_id = assignment['assignment_id']
-            print(f"Title : {assignment['title']}")
-            print(f"   Description : {assignment['description']}")
-            print(f"   Deadline    : {assignment['deadline']}")
-            print(f"   Max Grade   : {assignment['max_grade']}")
-            print("-" * 55)
-            answer_text = input("Enter your answer: ")
-            if not is_session_valid(session):
-                return
-            refresh_user_session(session["sessionID"])
-
-            answerData = {
-                "student_id": user_id,
-                "text": answer_text
-            }
-
-            result = create_answer_document(user_id, assignment_id, answerData)
-
-            if result.get("success"):
-                print("✅ Your answer has been submitted successfully!")
-                student_doc = students_col.find_one({"student_id": user_id}, {"_id": 0, "full_name": 1})
-                full_name = student_doc["full_name"] if student_doc else "Unknown"
-                link_student_to_assignment(user_id, full_name, assignment_id)
-                # log_student_event(studentID, courseID, assignmentID, submit assignment, timestamp)
-                invalidate_student_pending_task_cache(user_id)
-                invalidate_student_course_details_cache(user_id, course_id)
-                return
-            else:
-                print(f"❌ Failed to submit answer: {result.get('error')}")
+            assignment_title = assignment['title']
             break
-
-
         
+    while True:
+        print(f"Title : {assignment['title']}")
+        print(f"   Description : {assignment['description']}")
+        print(f"   Deadline    : {assignment['deadline']}")
+        print(f"   Max Grade   : {assignment['max_grade']}")
+        print("-" * 55)
+        print("1. Input the Answer")
+        print("2. Exit")
+        choice = input("Enter your choice: ")
+        match choice:
+            case "1":
+                answer_text = input("Enter your answer: ")
+                input("Press any key to submit the assignment...")
+                if not is_session_valid(session):
+                    return
+                refresh_user_session(session["sessionID"])
+
+                answerData = {
+                    "student_id": user_id,
+                    "text": answer_text
+                }
+                result = create_answer_document(user_id, assignment_id, answerData)
+
+                if result.get("success"):
+                    print("✅ Your answer has been submitted successfully!")
+                    student_doc = students_col.find_one({"student_id": user_id}, {"_id": 0, "full_name": 1})
+                    full_name = student_doc["full_name"] if student_doc else "Unknown"
+                    link_student_to_assignment(user_id, full_name, assignment_id, assignment_title)
+                    # log_student_event(studentID, courseID, assignmentID, submit assignment, timestamp)
+                    invalidate_student_pending_task_cache(user_id)
+                    invalidate_student_course_details_cache(user_id, course_id)
+                    return
+                else:
+                    print(f"❌ Failed to submit answer: {result.get('error')}")
+                break
+
+            case "2":
+                return
+            
+            case _:
+                print("❗Invalid choice, please try again.")
+                time.sleep(1)
