@@ -1,8 +1,19 @@
 import time
 from services.academic_network_service import create_instructor_node, create_student_node, link_instructor_to_course
 from services.auth_user_service import validate_session, refresh_user_session
-from services.course_activity_service import invalidate_available_courses_cache, invalidate_instructor_courses_cache, invalidate_student_pending_task_cache
+from services.course_activity_service import invalidate_available_courses_cache, invalidate_instructor_courses_cache
 from services.student_information_service import create_course, get_available_instructors, get_available_rooms, register_instructor, register_student
+import secrets
+import string
+
+def generate_password(length=10):
+    chars = string.ascii_letters + string.digits + "!@#$%^&*"
+    return ''.join(secrets.choice(chars) for _ in range(length))
+
+def save_credentials(filename, user_id, full_name, password):
+    with open(filename, "a", encoding="utf-8") as f:
+        f.write(f"{user_id} | {full_name} | {password}\n")
+
 def ensure_session(session):
 
     if not validate_session(session["sessionID"])["valid"]:
@@ -184,7 +195,7 @@ def create_student_screen(session):
     print("===Create Student===")
     full_name = input("Insert full name: ")
     student_id = input("Insert Student ID: ")
-    password = input("Insert password: ")
+    password = generate_password()
     input("Press any key to  Create Student...")
     if not is_session_valid(session):
         return
@@ -199,14 +210,22 @@ def create_student_screen(session):
         "role": "student"
     }
 
-    register_student(studentData, userData)
+    result = register_student(studentData, userData)
     create_student_node(student_id, full_name)
+    if result["success"]:
+        save_credentials(
+            "students_credentials.txt",
+            student_id,
+            full_name,
+            password
+        )
+        print("✅ Student created successfully")
 
 def create_instructor_screen(session):
     print("===Create Instructor===")
     full_name = input("Insert full name: ")
     instructor_id = input("Insert instructor ID: ")
-    password = input("Insert password: ")
+    password = generate_password()
     input("Press any key to  Create instructor...")
     if not is_session_valid(session):
         return
@@ -218,9 +237,17 @@ def create_instructor_screen(session):
     userData = {
         "user_id": instructor_id,
         "password": password,
-        "role": "student"
+        "role": "instructor"
     }
 
-    register_instructor(instructorData, userData)
+    result = register_instructor(instructorData, userData)
     create_instructor_node(instructor_id)
+    if result["success"]:
+        save_credentials(
+            "instructors_credentials.txt",
+            instructor_id,
+            full_name,
+            password
+        )
+        print("✅ Instructor created successfully")
         

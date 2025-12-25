@@ -20,7 +20,7 @@ def instructor_dashboard(courses_details, session, user_id):
     while True:
         if not ensure_session(session):
             break
-        print("\n--- Instructor Dashboard ---")
+        print("\n--- Instructor Menu ---")
         print("\n=== Courses Assigned to You ===")
         for i, course_details in enumerate(courses_details, start=1):
             print(

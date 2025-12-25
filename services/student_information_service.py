@@ -128,7 +128,7 @@ def create_user(userData):
 
     password = bcrypt.hashpw(
         userData["password"].encode("utf-8"),
-        bcrypt.gensalt()
+        bcrypt.gensalt(rounds=4)
     )
 
     user_doc = {
