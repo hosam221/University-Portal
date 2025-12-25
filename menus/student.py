@@ -296,7 +296,6 @@ def pending_tasks(session, user_id, pending, course_id):
                 # log_student_event(studentID, courseID, assignmentID, submit assignment, timestamp)
                 invalidate_student_pending_task_cache(user_id)
                 invalidate_student_course_details_cache(user_id, course_id)
-                pending = [t for t in pending if t['assignment_id'] != assignment_id]
                 return
             else:
                 print(f"❌ Failed to submit answer: {result.get('error')}")
