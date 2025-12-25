@@ -2,7 +2,7 @@ import time
 import uuid
 from services.academic_network_service import get_course_assignments, get_course_students, link_assignment_to_course
 from services.auth_user_service import validate_session, refresh_user_session
-from services.course_activity_service import cache_course_assignments, cache_enrolled_students, create_assignment, get_answer, get_cached_course_assignments, get_cached_enrolled_students, invalidate_course_details_cache, invalidate_instructor_course_assignments_cache, invalidate_student_course_details_cache, update_grades
+from services.course_activity_service import cache_course_assignments, cache_enrolled_students, create_assignment, get_answer, get_cached_course_assignments, get_cached_enrolled_students, invalidate_course_details_cache, invalidate_instructor_course_assignments_cache, invalidate_pending_tasks_cache_for_course, invalidate_student_course_details_cache, invalidate_student_pending_task_cache, update_grades
 
 def ensure_session(session):
 
@@ -109,6 +109,7 @@ def add_assignment_screen(session, course_id, user_id):
     link_assignment_to_course(assignmentData["assignment_id"], course_id, assignmentData["title"])
     invalidate_instructor_course_assignments_cache(course_id)
     invalidate_course_details_cache(course_id)
+    invalidate_pending_tasks_cache_for_course(course_id)
 
 def grade_assignment_screen(session, course_id):
     course_assignments = get_cached_course_assignments(course_id)

@@ -1,7 +1,7 @@
 import time
 from services.academic_network_service import create_instructor_node, create_student_node, link_instructor_to_course
 from services.auth_user_service import validate_session, refresh_user_session
-from services.course_activity_service import invalidate_available_courses_cache, invalidate_instructor_courses_cache
+from services.course_activity_service import invalidate_available_courses_cache, invalidate_instructor_courses_cache, invalidate_student_pending_task_cache
 from services.student_information_service import create_course, get_available_instructors, get_available_rooms, register_instructor, register_student
 def ensure_session(session):
 
@@ -203,7 +203,7 @@ def create_student_screen(session):
     create_student_node(student_id, full_name)
 
 def create_instructor_screen(session):
-    print("===Create Student===")
+    print("===Create Instructor===")
     full_name = input("Insert full name: ")
     instructor_id = input("Insert instructor ID: ")
     password = input("Insert password: ")

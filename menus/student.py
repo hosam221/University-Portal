@@ -1,7 +1,7 @@
 import time
 from services.academic_network_service import get_student_enrolled_course_ids, link_student_to_assignment, link_student_to_course
 from services.auth_user_service import validate_session, refresh_user_session
-from services.course_activity_service import cache_available_courses, cache_student_course_details, cache_student_courses, create_answer_document, get_cached_available_courses, get_cached_student_course_details, get_cached_student_courses, invalidate_enrolled_students_cache, invalidate_student_available_courses_cache, invalidate_student_course_details_cache, invalidate_student_courses_cache, invalidate_student_pending_task_cache
+from services.course_activity_service import cache_available_courses, cache_pending_tasks, cache_student_course_details, cache_student_courses, create_answer_document, get_cached_available_courses, get_cached_pending_tasks, get_cached_student_course_details, get_cached_student_courses, get_pending_assignments_for_courses, invalidate_enrolled_students_cache, invalidate_student_available_courses_cache, invalidate_student_course_details_cache, invalidate_student_courses_cache, invalidate_student_pending_task_cache
 from services.student_information_service import enroll_in_course, get_available_courses_for_registration, get_course_details, get_courses
 
 from pymongo import MongoClient
@@ -42,7 +42,7 @@ def student_dashboard(session, user_id):
                 my_courses_screen(session, user_id)
 
             case "3":
-                pass
+                pending_tasks_screen(session, user_id)
 
             case "4":
                 break
@@ -318,3 +318,39 @@ def pending_tasks(session, user_id, pending, course_id):
             case _:
                 print("❗Invalid choice, please try again.")
                 time.sleep(1)
+
+
+
+def pending_tasks_screen(session, user_id):
+    pending_tasks = get_cached_pending_tasks(user_id)
+    if not pending_tasks:
+        courseIDs = get_student_enrolled_course_ids(user_id)
+        pending_tasks = get_pending_assignments_for_courses(user_id, courseIDs)
+        cache_pending_tasks(user_id, pending_tasks)
+        print("from mongo")
+    else:
+        print("from redis")
+    if not pending_tasks:
+        print("🎉 No pending assignments!")
+    else:
+        from collections import defaultdict
+
+        tasks_by_course = defaultdict(list)
+        for task in pending_tasks['tasks']:
+            tasks_by_course[task["course_name"]].append(task)
+
+        for course_name, tasks in tasks_by_course.items():
+            print(f"\n{'='*40}")
+            print(f"📚 Course: {course_name}")
+            print(f"{'='*40}")
+
+            for i, task in enumerate(tasks, start=1):
+                print(f"\n📝 Task #{i}")
+                print(f"-" * 40)
+                print(f"📌 Title        : {task['title']}")
+                print(f"🧾 Description  : {task['description']}")
+                print(f"⏰ Deadline     : {task['deadline']}")
+                print(f"🏆 Max Grade    : {task['max_grade']}")
+
+
+    input("Press any key to back...")

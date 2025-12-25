@@ -5,11 +5,13 @@ from pymongo.collection import Collection
 from pymongo.errors import PyMongoError
 import json
 
+from services.academic_network_service import get_course_students
+
 mongo_client = MongoClient("mongodb://localhost:27017/")
 mongo_db = mongo_client["university_portal"]
 assignments_col: Collection = mongo_db["assignments"]
+courses_col = mongo_db["courses"]
 assignments_col.create_index([("assignment_id", 1)], unique=True)
-
 redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
 
 DEFAULT_CACHE_TTL = 600 
@@ -98,6 +100,19 @@ def invalidate_student_pending_task_cache(studentID: str) -> dict:
     redis_client.delete(_k_pending_tasks(studentID))
     return {"success": True}
 
+def invalidate_pending_tasks_cache_for_course(courseID: str):
+    try:
+        enrolled_students = get_course_students(courseID)
+        students = enrolled_students.get("students", [])
+
+        for student in students:
+            student_id = student["studentID"]
+            key = _k_pending_tasks(student_id)
+            redis_client.delete(key) 
+
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 # Redis Cache Functions
 
@@ -142,6 +157,7 @@ def cache_pending_tasks(studentID: str, tasks: List[dict]) -> dict:
     redis_client.set(key, json.dumps(tasks))
     redis_client.expire(key, DEFAULT_CACHE_TTL)
     return {"success": True}
+
 
 import json
 from typing import List, Optional
@@ -301,18 +317,30 @@ def get_pending_assignments_for_courses(studentID: str, courseIDs: List[str]) ->
     try:
         assignments = list(assignments_col.find(
             {"course_id": {"$in": courseIDs}},
-            {"_id": 0}
+            {"_id": 0, "assignment_id": 1, "course_id": 1, "title": 1, "description": 1, "deadline": 1, "max_grade": 1, "answer_text": 1}
         ))
 
         pending = []
 
         for a in assignments:
-            submitted_students = {
-                ans["student_id"] for ans in a.get("answer_text", [])
-            }
+            submitted_students = {ans["student_id"] for ans in a.get("answer_text", [])}
             if studentID not in submitted_students:
-                pending.append(a)
+                course = courses_col.find_one(
+                    {"course_id": a["course_id"]},
+                    {"_id": 0, "details.course_name": 1} 
+                )
+                course_name = course["details"]["course_name"] if course and "details" in course else "Unknown Course"
+
+                pending.append({
+                    "course_name": course_name,
+                    "assignment_id": a["assignment_id"],
+                    "title": a["title"],
+                    "description": a["description"],
+                    "deadline": a["deadline"],
+                    "max_grade": a["max_grade"]
+                })
 
         return {"success": True, "tasks": pending}
     except PyMongoError as e:
         return {"success": False, "error": str(e)}
+
