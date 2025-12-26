@@ -1,0 +1,7 @@
+bcrypt==5.0.0
+dnspython==2.8.0
+neo4j==6.0.3
+pymongo==4.15.5
+pytz==2025.2
+redis==7.1.0
+influxdb-client==3.6.0

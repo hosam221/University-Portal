@@ -1,16 +1,14 @@
+version: '3.8'
+
 services:
+  # --- Redis ---
   redis:
     image: redis:7.0.15
     container_name: redis
     ports:
       - "6379:6379"
 
-  mongo:
-    image: mongo:8.2.1
-    container_name: mongo
-    ports:
-      - "27017:27017"
-
+  # --- InfluxDB ---
   influxdb:
     image: influxdb:2.7
     container_name: influxdb
@@ -26,6 +24,7 @@ services:
       - DOCKER_INFLUXDB_INIT_BUCKET=my-bucket
       - DOCKER_INFLUXDB_INIT_RETENTION=0
 
+  # --- Neo4j ---
   neo4j:
     image: neo4j:5.26.17
     container_name: neo4j
@@ -38,5 +37,60 @@ services:
       - NEO4J_dbms_memory_heap_initial__size=512M
       - NEO4J_dbms_memory_heap_max__size=512M
 
+  # --- MongoDB Cluster Node 1 ---
+  mongo1:
+    image: mongo:8.2.1
+    container_name: mongo1
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: echo "try { rs.status() } catch (e) { rs.initiate({_id:'rs0', members:[{_id:0, host:'mongo1:27017'},{_id:1, host:'mongo2:27017'},{_id:2, host:'mongo3:27017'}]}) }" | mongosh --port 27017 --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  # --- MongoDB Cluster Node 2 ---
+  mongo2:
+    image: mongo:8.2.1
+    container_name: mongo2
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27018:27017"
+
+  # --- MongoDB Cluster Node 3 ---
+  mongo3:
+    image: mongo:8.2.1
+    container_name: mongo3
+    command: ["--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27019:27017"
+
+  # --- Python Application ---
+  university_portal:
+    build: .
+    container_name: university_portal
+    depends_on:
+      mongo1:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      neo4j:
+        condition: service_started
+      influxdb:
+        condition: service_started
+    ports:
+      - "5050:5000"
+    volumes:
+      - .:/app
+    stdin_open: true
+    tty: true
+
 volumes:
   influxdb_data:
+
+  # mongo:
+  #   image: mongo:8.2.1
+  #   container_name: mongo
+  #   ports:
+  #     - "27017:27017"

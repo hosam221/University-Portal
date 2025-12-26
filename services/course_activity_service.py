@@ -7,12 +7,14 @@ import json
 
 from services.academic_network_service import get_course_students
 
-mongo_client = MongoClient("mongodb://localhost:27017/")
+# mongo_client = MongoClient("mongodb://localhost:27017/")
+mongo_client = MongoClient("mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0")
 mongo_db = mongo_client["university_portal"]
 assignments_col: Collection = mongo_db["assignments"]
 courses_col = mongo_db["courses"]
 assignments_col.create_index([("assignment_id", 1)], unique=True)
-redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+# redis_client = redis.Redis(host="localhost", port=6379, decode_responses=True)
+redis_client = redis.Redis(host="redis", port=6379, decode_responses=True)
 
 DEFAULT_CACHE_TTL = 600 
 

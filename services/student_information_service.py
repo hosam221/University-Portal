@@ -5,7 +5,8 @@ import bcrypt
 
 
 
-mongo_client = MongoClient("mongodb://localhost:27017/")
+# mongo_client = MongoClient("mongodb://localhost:27017/")
+mongo_client = MongoClient("mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0")
 mongo_db = mongo_client["university_portal"]
 
 users_col = mongo_db["users"]
